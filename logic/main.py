@@ -1,15 +1,32 @@
-import tkinter as tk
-from ui.admin_ui import AdminUI
-from ui.user_ui import UserUI
-def main():
-    root = tk.Tk()
-    root.title("SFU Timetable Builder")
-    root.geometry("600x400")
+from tkinter import messagebox, filedialog
+import os
 
-    tk.Button(root,text="Режим администратора", command=lambda: AdminUI(root),font=("Arial",12)).pack(pady=10)
-    tk.Button(root, text="Режим пользователя", command=lambda: UserUI(root), font=("Arial",12)).pack(pady=10)
+def select_config_file():
+    messagebox.showinfo(
+        "Информация о файле конфигурации",
+        "Файл конфигурации представляет собой таблицу из двух колонок.\n"
+        "В первой колонке - ФИО преподавателя,\n"
+        "во второй колонке - гиперссылка на этого преподавателя на сайте расписания СФУ.\n\n"
+        "Пожалуйста, проверьте файл конфигурации во избежание возможных ошибок."
+    )
+    file_path = filedialog.askopenfilename(
+        title="Выберите файл конфигурации",
+        filetypes=(
+            ("Excel файлы", "*.xlsx *.xls *.xlsm *.xlsb *.csv"),
+            ("Все файлы", "*.*")
+        )
+    )
+    if file_path:
+        # Проверяем расширение файла
+        ext = os.path.splitext(file_path)[1].lower()
+        valid_extensions = ['.xlsx', '.xls', '.xlsm', '.xlsb','.csv']
 
-    root.mainloop()
+        if ext not in valid_extensions:
+            messagebox.showerror(
+                "Ошибка",
+                "Выбран файл недопустимого формата!\n"
+                "Пожалуйста, выберите файл Excel (.xlsx, .xls и т.д.) или CSV"
+            )
+            return
 
-if __name__  == "__main__":
-    main()
+        # Здесь происходит дальнейшая работа с файлом
