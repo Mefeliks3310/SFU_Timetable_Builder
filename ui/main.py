@@ -17,23 +17,40 @@ class MainWindow:
         self.setup_ui()
         self.window.mainloop()
 
+
+
     def setup_ui(self):
         icon = tk.PhotoImage(file="content/sfu_icon.png")
         self.window.iconphoto(True, icon)
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Custom.TButton", background="white", font=("Arial", 12, "bold"), padding=10)
-        style.map("Custom.TButton", background=[("active", "#eae9e9")])
-        style.configure("Pressed.TButton", background="#ff8a00")
+        style.configure("Custom.TButton",
+            background="White",
+            foreground="black",
+            font=("Arial", 12, "bold"),
+            borderwidth=2,
+            relief="flat",
+            padding=10)
 
-        def on_button_press(button): button.configure(style="Pressed.TButton")
-        def on_button_release(button): button.configure(style="Custom.TButton")
+        style.configure("Pressed.TButton",
+            background="#ff8a00",
+            foreground="black",
+            font=("Arial", 12, "bold"),
+            borderwidth=2,
+            relief="sunken",
+            padding=10)
+
+        def on_button_press(button):
+            button.configure(style="Pressed.TButton")
+
+        def on_button_release(button):
+            button.configure(style="Custom.TButton")
 
         logo = tk.PhotoImage(file="content/sfu_logo.png")
         logo_label = tk.Label(self.window, image=logo, bg="#FF7900")
         logo_label.image = logo  # сохранить ссылку
-        logo_label.pack(pady=20)
+        logo_label.pack(pady=(0,20))
 
         button_frame = tk.Frame(self.window, bg="#FF7900")
         button_frame.pack(pady=20)
