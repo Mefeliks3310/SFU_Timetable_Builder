@@ -79,9 +79,10 @@ class MainWindow:
             messagebox.showerror("Ошибка", f"Не удалось загрузить файл: {e}")
 
     def open_window_combine_schedulde(self):
-        if len(logic.teachers) == 0:
+        if len(self.logic.teachers) == 0:
             messagebox.showwarning("Нет данных", "Сначала загрузите конфигурационный файл.")
             return
+        self.logic.create_combined_schedule()
         DownloadWindow(self.window, self.logic)
 
 
@@ -114,8 +115,8 @@ class DownloadWindow(tk.Toplevel):
 
         statuses = self.logic.get_teacher_statuses()
         for status in statuses:
-            icon = "✅" if status["status"] == "ok" else "❌"
-            label = tk.Label(self.status_frame, text=f"{status['name']} {icon}",
+            icon = "✅" if statuses[status] == "ok" else "❌"
+            label = tk.Label(self.status_frame, text=f"{status} {icon}",
                              anchor="w", font=("Arial", 12), bg="white")
             label.pack(fill=tk.X, padx=20, pady=2)
 
