@@ -91,7 +91,7 @@ class DownloadWindow(tk.Toplevel):
         super().__init__(master)
         self.logic = logic
         self.title("Состояние загрузки")
-        self.geometry("400x500")
+        self.geometry("700x500")
         self.configure(bg="white")
         self.resizable(False, False)
 
@@ -116,7 +116,7 @@ class DownloadWindow(tk.Toplevel):
         statuses = self.logic.get_teacher_statuses()
         for status in statuses:
             icon = "✅" if statuses[status] == "ok" else "❌"
-            label = tk.Label(self.status_frame, text=f"{status} {icon}",
+            label = tk.Label(self.status_frame, text=f"{status} {icon} {statuses[status]}",
                              anchor="w", font=("Arial", 12), bg="white")
             label.pack(fill=tk.X, padx=20, pady=2)
 
