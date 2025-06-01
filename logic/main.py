@@ -146,8 +146,8 @@ class MainLogic:
                     time_of_lesson = tds[1].get_text(separator=' ', strip=True)
                     text_first = extract_text_with_commas_and_breaks(tds[2]) or "Нечетная: пусто"
                     text_second = extract_text_with_commas_and_breaks(tds[3]) or "Чётная: пусто"
-                    lesson_info_first = [num_of_lesson, time_of_lesson, text_first]
-                    lesson_info_second = [num_of_lesson, time_of_lesson, text_second]
+                    lesson_info_first = ["нечетная", num_of_lesson, time_of_lesson, text_first]
+                    lesson_info_second = ["четная", num_of_lesson, time_of_lesson, text_second]
                     dict_of_schedule[current_heading].append(lesson_info_first)
                     dict_of_schedule[current_heading].append(lesson_info_second)
 
@@ -155,8 +155,15 @@ class MainLogic:
                     num_of_lesson = tds[0].get_text(separator=' ', strip=True)
                     time_of_lesson = tds[1].get_text(separator=' ', strip=True)
                     text = extract_text_with_commas_and_breaks(tds[2])
-                    lesson_info = [num_of_lesson, time_of_lesson, text]
+                    lesson_info = ["обе", num_of_lesson, time_of_lesson, text]
                     dict_of_schedule[current_heading].append(lesson_info)
+        for i in dict_of_schedule:
+            # print(dict_of_schedule[i])
+            for n in dict_of_schedule[i]:
+                print(i, " ".join(n))
+                print("-----------------")
         return dict_of_schedule
 
-    #get_schedule("Кушнаренко А. В.", "https://edu.sfu-kras.ru/timetable?teacher=Кушнаренко+А.+В.")
+
+test = MainLogic()
+test.get_schedule("Кушнаренко А. В.", "https://edu.sfu-kras.ru/timetable?teacher=Кушнаренко+А.+В.")
