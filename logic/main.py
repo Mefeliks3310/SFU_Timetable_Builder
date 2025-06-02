@@ -4,7 +4,6 @@ import pandas as pd
 from tkinter import messagebox, filedialog
 import requests
 from bs4 import BeautifulSoup, NavigableString, Tag
-from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
@@ -121,7 +120,7 @@ class MainLogic:
 
         # Set column widths
         worksheet.column_dimensions['A'].width = 74 / 7.5  # №, ~74 pixels
-        worksheet.column_dimensions['B'].width = 80 / 7.5  # Время, ~80 pixels
+        worksheet.column_dimensions['B'].width = 100 / 7.5  # Время, ~80 pixels
         for col in range(3, worksheet.max_column + 1):
             max_length = 0
             for row in range(2, worksheet.max_row + 1):
@@ -207,7 +206,8 @@ class MainLogic:
                         day_lessons.add((номер, время))
 
             if day_lessons:
-                rows.append([day] + [""] * (len(teachers) + 1))  # Заголовок дня
+                #rows.append([day] + [""] * (len(teachers) + 1))  # Заголовок дня
+                fl = True
                 lessons = sorted(list(day_lessons), key=lambda x: int(x[0]))
                 for номер, время in lessons:
                     row = [номер, время]
@@ -220,7 +220,16 @@ class MainLogic:
                                 row.append("")
                         else:
                             row.append("")
-                    rows.append(row)
+                    #rows.append(row)
+                    if any(cell != "" for cell in row[2:]):
+                        if fl:
+                            rows.append([day] + [""] * (len(teachers) + 1))  # Заголовок дня
+                            fl = False
+                        rows.append(row)
+                    # print(len(row))
+                    # if row[2] != "" or row[3] != "":
+                    #     rows.append(row)
+
 
         columns = ["№", "Время"] + teachers
         df = pd.DataFrame(rows, columns=columns)
@@ -265,12 +274,12 @@ class MainLogic:
                         result.append(elem.get("href"))
                     else:
                         text_ = elem.get_text(strip=True)
-                        if "подгруппа" in text_.lower():
+                        if "подгруппа" in text_:
+                            # Удаляем "(1 подгруппа)" и подобное
                             base_name = re.sub(r'\s*\(.*подгруппа\)', '', text_)
-                            sub_name = re.search(r'\((.*подгруппа)\)', text_)
                             if base_name not in group_set:
                                 group_set.add(base_name)
-                                group_names.append(f"{base_name} ({sub_name.group(1)})" if sub_name else base_name)
+                                group_names.append(base_name)
                         else:
                             current_line.append(text_)
 
@@ -279,13 +288,26 @@ class MainLogic:
                 if line:
                     result.append(line)
 
-            output = []
-            if group_names:
-                output.append(', '.join(group_names))
-            if result:
-                output.extend(result)
+            # output = []
+            # if group_names:
+            #     output.append(', '.join(group_names))
+            # if result:
+            #     output.extend(result)
+            #
+            # return '\n'.join([line for line in output if line]).strip()
 
-            return '\n'.join([line for line in output if line]).strip()
+            output = ''
+            if group_names:
+                output += ', '.join(group_names)
+            if result:
+                if output:
+                    output += '\n'
+                output += '\n'.join(result)
+
+            # Удаление преподавателя из строки
+            output = output.replace(teacher_name + "\n", "").replace("ЭИОС\n", "ЭИОС, ")
+
+            return output.strip()
 
         for row in rows:
             if "heading-section" in row.get("class", []):
@@ -310,4 +332,5 @@ class MainLogic:
                     lesson = [num_of_lesson, time_of_lesson, text]
                     odd_week_schedule[current_heading].append(lesson)
                     even_week_schedule[current_heading].append(lesson)
+
         return (odd_week_schedule, even_week_schedule)
