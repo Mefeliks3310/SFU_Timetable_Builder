@@ -35,8 +35,22 @@ class MainLogic:
 
         if ext == '.csv':
             df = pd.read_csv(file_path, header=None)
+
         else:
-            df = pd.read_excel(file_path, engine='openpyxl', header=None, names=["фио", "url"])
+             df = pd.read_excel(file_path, engine='openpyxl', header=None, names=["фио", "url"])
+
+        test_teachers = df.to_dict("records")
+        if len(test_teachers) != 2:
+            raise ValueError("Файл конфигурации не представляет собой таблицу из двух колонок, где\n"""
+                             "В первой колонке - ФИО преподавателя,\n"
+                             "во второй колонке - гиперссылка на преподавателя на сайте расписания СФУ.\n\n"
+                             "Пожалуйста, проверьте файл конфигурации и после попробуйте загрузить ещё раз.")
+        else:
+            for teacher in test_teachers:
+                if "https://edu.sfu-kras.ru/timetable" not in str(teacher["url"]):
+                    raise ValueError(f"Для преподавателя {teacher["фио"]} введена неверная ссылка: {teacher["url"]}. Пожалуйста, проверьте файл конфигурации и после попробуйте загрузить ещё раз.")
+
+
         self.teachers.clear()
         self.teachers = df.to_dict("records")
 

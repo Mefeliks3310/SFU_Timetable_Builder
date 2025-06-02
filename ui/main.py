@@ -74,7 +74,7 @@ class MainWindow:
             "Информация о файле конфигурации",
             "Файл конфигурации представляет собой таблицу из двух колонок.\n"
             "В первой колонке - ФИО преподавателя,\n"
-            "во второй колонке - гиперссылка на этого преподавателя на сайте расписания СФУ.\n\n"
+            "во второй колонке - гиперссылка на преподавателя на сайте расписания СФУ.\n\n"
             "Пожалуйста, проверьте файл конфигурации во избежание возможных ошибок."
         )
         file_path = filedialog.askopenfilename(
@@ -99,11 +99,8 @@ class MainWindow:
         if len(self.logic.teachers) == 0:
             messagebox.showwarning("Нет данных", "Сначала загрузите конфигурационный файл.")
             return
-        try:
-            self.logic.create_combined_schedule()
-            DownloadWindow(self.window, self.logic)
-        except Exception:
-            messagebox.showwarning("Ошибка в файле!", "Данные в загруженном файле некорректны")
+        self.logic.create_combined_schedule()
+        DownloadWindow(self.window, self.logic)
 
 
 class DownloadWindow(tk.Toplevel):
