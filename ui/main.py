@@ -99,8 +99,11 @@ class MainWindow:
         if len(self.logic.teachers) == 0:
             messagebox.showwarning("Нет данных", "Сначала загрузите конфигурационный файл.")
             return
-        self.logic.create_combined_schedule()
-        DownloadWindow(self.window, self.logic)
+        try:
+            self.logic.create_combined_schedule()
+            DownloadWindow(self.window, self.logic)
+        except Exception:
+            messagebox.showwarning("Ошибка в файле!", "Данные в загруженном файле некорректны")
 
 
 class DownloadWindow(tk.Toplevel):
