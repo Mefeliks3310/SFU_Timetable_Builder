@@ -161,11 +161,15 @@ class MainLogic:
             if first_cell.value in days_order:
                 # Day header
                 worksheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=worksheet.max_column)
-                day_cell = first_cell
-                day_cell.fill = day_fill
-                day_cell.font = day_font
-                day_cell.alignment = day_alignment
-                day_cell.border = thick_bottom_border
+                for col in range(1, worksheet.max_column + 1):
+                    day_cell = worksheet.cell(row=row, column=col)
+                    day_cell.fill = day_fill
+                    day_cell.font = day_font
+                    day_cell.alignment = day_alignment
+                    day_cell.border = thick_bottom_border
+                    if col == 1:
+                        day_cell.value = first_cell.value  # Устанавливаем значение только в первой ячейке
+                    # Удаляем попытку установить значение для остальных ячеек (MergedCell)
             else:
                 # Lesson row
                 num_cell = worksheet.cell(row=row, column=1)

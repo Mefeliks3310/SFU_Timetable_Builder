@@ -103,7 +103,7 @@ class DownloadWindow(tk.Toplevel):
         self.logic = logic
         self.title("Состояние загрузки")
         self.geometry("700x500")
-        self.configure(bg="white")
+        self.configure(bg="#FF7900")
         self.resizable(False, False)
 
         self.status_frame = tk.Frame(self, bg="white")
@@ -131,7 +131,7 @@ class DownloadWindow(tk.Toplevel):
                         relief="sunken",
                         padding=10)
 
-        button_frame = tk.Frame(self, bg="white")
+        button_frame = tk.Frame(self, bg="#FF7900")
         button_frame.pack(pady=10)
 
         self.btn_refresh = ttk.Button(button_frame, text="Обновить таблицу", style="Custom.TButton",
