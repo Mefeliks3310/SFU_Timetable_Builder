@@ -88,14 +88,17 @@ class MainLogic:
             error_teachers = [f"{teacher}: {status}" for teacher, status in self.get_teacher_statuses().items() if status != "ok"]
             if error_teachers:
                 messagebox.showwarning("Предупреждение", "Расписание создано, но есть ошибки:\n" + "\n".join(error_teachers))
-            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                odd_df.to_excel(writer, sheet_name="1 нед", index=False)
-                even_df.to_excel(writer, sheet_name="2 нед", index=False)
-                workbook = writer.book
-                for sheet_name in ["1 нед", "2 нед"]:
-                    worksheet = writer.sheets[sheet_name]
-                    self.apply_formatting(worksheet, teachers)
-            messagebox.showinfo("Готово", "Объединённое расписание успешно создано!")
+            try:
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    odd_df.to_excel(writer, sheet_name="1 нед", index=False)
+                    even_df.to_excel(writer, sheet_name="2 нед", index=False)
+                    workbook = writer.book
+                    for sheet_name in ["1 нед", "2 нед"]:
+                        worksheet = writer.sheets[sheet_name]
+                        self.apply_formatting(worksheet, teachers)
+                messagebox.showinfo("Готово", "Объединённое расписание успешно создано!")
+            except PermissionError:
+                raise PermissionError(f"Ошибка сохранения таблицы, возможно в данный момент открыт изменяемый файл ({file_path})")
         else:
             messagebox.showwarning("Отменено", "Сохранение файла было отменено.")
 

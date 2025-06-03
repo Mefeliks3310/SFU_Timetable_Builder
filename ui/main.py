@@ -94,7 +94,13 @@ class MainWindow:
         if len(self.logic.teachers) == 0:
             messagebox.showwarning("Нет данных", "Сначала загрузите конфигурационный файл.")
             return
-        DownloadWindow(self.window, self.logic)
+        # Проверяем, существует ли уже окно и не было ли оно уничтожено
+        if hasattr(self, 'download_window') and self.download_window.winfo_exists():
+            # Окно уже существует, поднимаем его на передний план
+            self.download_window.lift()
+            return
+        # Создаем новое окно и сохраняем ссылку на него
+        self.download_window = DownloadWindow(self.window, self.logic)
 
 
 class DownloadWindow(tk.Toplevel):
@@ -191,6 +197,8 @@ class DownloadWindow(tk.Toplevel):
             self.logic.create_combined_schedule(save_file=True)
             self.destroy()
         except ValueError as e:
+            messagebox.showerror("Ошибка", str(e))
+        except PermissionError as e:
             messagebox.showerror("Ошибка", str(e))
 
 
