@@ -10,7 +10,7 @@ def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
     except AttributeError:
-        base_path = os.path.abspath(".")
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     return os.path.join(base_path, relative_path)
 
 
@@ -26,7 +26,7 @@ class MainWindow:
         self.window.mainloop()
 
     def setup_ui(self):
-        icon_path = resource_path("content/sfu_icon.png")
+        icon_path = resource_path("ui/content/sfu_icon.png")
         icon = tk.PhotoImage(file=icon_path)
         self.window.iconphoto(True, icon)
         self.window.iconphoto(True, icon)
@@ -54,7 +54,7 @@ class MainWindow:
         def on_button_release(button):
             button.configure(style="Custom.TButton")
 
-        logo_path = resource_path("content/sfu_logo.png")
+        logo_path = resource_path("ui/content/sfu_logo.png")
         logo = tk.PhotoImage(file=logo_path)
         logo_label = tk.Label(self.window, image=logo, bg="#FF7900")
         logo_label.image = logo  # сохранить ссылку

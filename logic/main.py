@@ -264,7 +264,7 @@ class MainLogic:
             group_names = []
             group_set = set()
             current_line = []
-
+            coun_br = 0
             for elem in td.contents:
                 if isinstance(elem, NavigableString):
                     text_ = elem.strip()
@@ -272,6 +272,7 @@ class MainLogic:
                         current_line.append(text_)
                 elif isinstance(elem, Tag):
                     if elem.name == "br":
+                        coun_br += 1
                         if current_line:
                             line = ' '.join(current_line).strip()
                             if line:
@@ -283,10 +284,13 @@ class MainLogic:
                         text_ = elem.get_text(strip=True)
                         if "подгруппа" in text_:
                             # Удаляем "(1 подгруппа)" и подобное
-                            base_name = re.sub(r'\s*\(.*подгруппа\)', '', text_)
+                            base_name = re.sub(r'\s*\(?\d+\s*подгруппа\)?\s*', '', text_)
                             if base_name not in group_set:
                                 group_set.add(base_name)
                                 group_names.append(base_name)
+                        elif coun_br == 0:
+                            group_set.add(text_)
+                            group_names.append(text_)
                         else:
                             current_line.append(text_)
 
@@ -295,14 +299,6 @@ class MainLogic:
                 if line:
                     result.append(line)
 
-            # output = []
-            # if group_names:
-            #     output.append(', '.join(group_names))
-            # if result:
-            #     output.extend(result)
-            #
-            # return '\n'.join([line for line in output if line]).strip()
-
             output = ''
             if group_names:
                 output += ', '.join(group_names)
@@ -310,10 +306,8 @@ class MainLogic:
                 if output:
                     output += '\n'
                 output += '\n'.join(result)
-
             # Удаление преподавателя из строки
             output = output.replace(teacher_name + "\n", "").replace("ЭИОС\n", "ЭИОС, ")
-
             return output.strip()
 
         for row in rows:
