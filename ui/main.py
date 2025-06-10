@@ -148,6 +148,8 @@ class DownloadWindow(tk.Toplevel):
 
         self.canvas = canvas  # можно сохранить, если нужно потом прокручивать программно
 
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)  # Windows/Mac
+
         self.loading_label = tk.Label(self, text="Загрузка расписаний...", font=("Arial", 12), bg="white")
         self.loading_label.pack(pady=10)
         self.progress = ttk.Progressbar(self, mode='indeterminate', length=300)
@@ -204,6 +206,21 @@ class DownloadWindow(tk.Toplevel):
 
         # Запускаем загрузку расписаний в отдельном потоке
         threading.Thread(target=self.load_schedules, daemon=True).start()
+
+    def _on_mousewheel(self, event):
+        """Обработчик прокрутки колесика мыши с проверкой границ"""
+        # Получаем текущее положение прокрутки
+        first_visible, last_visible = self.canvas.yview()
+
+        # Определяем направление прокрутки
+        scroll_up = (event.num == 4 or event.delta > 0)
+        scroll_down = (event.num == 5 or event.delta < 0)
+
+        # Проверяем, можно ли прокручивать дальше
+        if scroll_up and first_visible > 0:
+            self.canvas.yview_scroll(-1, "units")  # Прокрутка вверх
+        elif scroll_down and last_visible < 1:
+            self.canvas.yview_scroll(1, "units")  # Прокрутка вниз
 
     def load_schedules(self):
         try:
