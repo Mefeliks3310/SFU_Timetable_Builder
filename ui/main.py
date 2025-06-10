@@ -126,8 +126,27 @@ class DownloadWindow(tk.Toplevel):
         self.resizable(False, False)
         self.keep_subgroups = tk.BooleanVar(value=False)
 
-        self.status_frame = tk.Frame(self, bg="white")
-        self.status_frame.pack(pady=20, fill=tk.BOTH, expand=True)
+        # === Обертка для прокрутки ===
+        frame_container = tk.Frame(self, bg="white")
+        frame_container.pack(pady=20, fill=tk.BOTH, expand=True)
+
+        canvas = tk.Canvas(frame_container, bg="white", highlightthickness=0)
+        scrollbar = tk.Scrollbar(frame_container, orient="vertical", command=canvas.yview)
+        self.status_frame = tk.Frame(canvas, bg="white")
+
+        # Привязка скролла
+        self.status_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.status_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.canvas = canvas  # можно сохранить, если нужно потом прокручивать программно
 
         self.loading_label = tk.Label(self, text="Загрузка расписаний...", font=("Arial", 12), bg="white")
         self.loading_label.pack(pady=10)
@@ -154,12 +173,11 @@ class DownloadWindow(tk.Toplevel):
         button_frame = tk.Frame(self, bg="#FF7900")
         button_frame.pack(pady=10)
 
-        self.keep_subgroups_var = tk.BooleanVar(value=False) # чекбокс группы
-
         self.btn_refresh = ttk.Button(button_frame, text="Обновить таблицу", style="Custom.TButton",
                                      command=self.refresh_schedule, state=tk.DISABLED)
         self.btn_refresh.pack(side=tk.LEFT, padx=10)
 
+        self.keep_subgroups_var = tk.BooleanVar(value=False)  # чекбокс группы
         # Чекбокс "Оставить подгруппы"
         self.chk_keep_subgroups = tk.Checkbutton(
             button_frame,
@@ -231,7 +249,7 @@ class DownloadWindow(tk.Toplevel):
     def download_schedule(self):
         try:
             self.logic.create_combined_schedule(save_file=True, keep_groups=self.keep_subgroups_var.get())
-            self.destroy()
+            #self.destroy()
         except ValueError as e:
             messagebox.showerror("Ошибка", str(e))
         except PermissionError as e:
