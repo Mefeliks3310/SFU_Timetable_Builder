@@ -124,6 +124,7 @@ class DownloadWindow(tk.Toplevel):
         self.geometry("700x500")
         self.configure(bg="#FF7900")
         self.resizable(False, False)
+        self.keep_subgroups = tk.BooleanVar(value=False)
 
         self.status_frame = tk.Frame(self, bg="white")
         self.status_frame.pack(pady=20, fill=tk.BOTH, expand=True)
@@ -153,9 +154,31 @@ class DownloadWindow(tk.Toplevel):
         button_frame = tk.Frame(self, bg="#FF7900")
         button_frame.pack(pady=10)
 
+        self.keep_subgroups_var = tk.BooleanVar(value=False) # чекбокс группы
+
         self.btn_refresh = ttk.Button(button_frame, text="Обновить таблицу", style="Custom.TButton",
                                      command=self.refresh_schedule, state=tk.DISABLED)
         self.btn_refresh.pack(side=tk.LEFT, padx=10)
+
+        # Чекбокс "Оставить подгруппы"
+        self.chk_keep_subgroups = tk.Checkbutton(
+            button_frame,
+            text="Оставить подгруппы",
+            variable=self.keep_subgroups_var,
+            font=("Arial", 12),
+            bg="white",  # фон как у кнопки
+            fg="black",  # текст
+            activebackground="white",
+            activeforeground="black",
+            selectcolor="white",  # фон галочки внутри
+            highlightthickness=0,
+            bd=1,  # небольшая рамка
+            relief="solid",  # чтобы казалось как кнопка
+            padx=10,
+            pady=5
+        )
+        self.chk_keep_subgroups.pack(side=tk.LEFT, padx=10)
+
 
         self.btn_download = ttk.Button(button_frame, text="Скачать таблицу", style="Custom.TButton",
                                       command=self.download_schedule, state=tk.DISABLED)
@@ -207,7 +230,7 @@ class DownloadWindow(tk.Toplevel):
 
     def download_schedule(self):
         try:
-            self.logic.create_combined_schedule(save_file=True)
+            self.logic.create_combined_schedule(save_file=True, keep_groups=self.keep_subgroups_var.get())
             self.destroy()
         except ValueError as e:
             messagebox.showerror("Ошибка", str(e))
