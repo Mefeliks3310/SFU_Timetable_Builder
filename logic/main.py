@@ -45,10 +45,9 @@ class MainLogic:
             self.teachers = test_teachers
             self.teachers_schedule.clear()
 
-    def create_combined_schedule(self, check_only=False, save_file=False, callback=None):
+    def create_combined_schedule(self, check_only=False, save_file=False, callback=None, keep_groups=False):
         if not self.teachers:
             raise ValueError("Нет данных", "Сначала загрузите конфигурационный файл.")
-
         if check_only or not self.teachers_schedule:
             self.teachers_schedule.clear()
             for teacher in self.teachers:
@@ -56,7 +55,6 @@ class MainLogic:
                 self.teachers_schedule[teacher["фио"]] = schedule
                 if callback:
                     callback(teacher["фио"], schedule)
-
         if check_only:
             return
 
@@ -73,9 +71,8 @@ class MainLogic:
         if not teachers:
             raise ValueError("Нет успешных расписаний", "Не удалось загрузить ни одно расписание. Проверьте конфигурацию.")
 
-        odd_df = self.create_schedule_df(odd_schedules, teachers)
-        even_df = self.create_schedule_df(even_schedules, teachers)
-
+        odd_df = self.create_schedule_df(odd_schedules, teachers, keep_groups=keep_groups)
+        even_df = self.create_schedule_df(even_schedules, teachers, keep_groups=keep_groups)
         if not save_file:
             return
 
@@ -188,8 +185,10 @@ class MainLogic:
                     if subject_cell.value:
                         lines = str(subject_cell.value).split('\n')
                         if len(lines) >= 3:  # Expecting group, discipline, building
-                            subject_cell.value = f"{lines[0]}\n{lines[1]}\n{lines[2]}"  # Keep only group, discipline, building
-                            subject_cell.font = discipline_font  # Discipline in #5f8a96, bold
+                            # subject_cell.value = f"{lines[0]}\n{lines[1]}\n{lines[2]}"  # Keep only group, discipline, building
+                            # subject_cell.font = discipline_font  # Discipline in #5f8a96, bold
+                            subject_cell.value = "\n".join(lines)
+                            subject_cell.font = discipline_font
                         elif len(lines) == 2:  # Group and discipline
                             subject_cell.value = f"{lines[0]}\n{lines[1]}"  # Keep group and discipline
                             subject_cell.font = discipline_font
@@ -200,7 +199,7 @@ class MainLogic:
                     subject_cell.alignment = cell_alignment
                     subject_cell.border = medium_border
 
-    def create_schedule_df(self, schedules, teachers):
+    def create_schedule_df(self, schedules, teachers, keep_groups=False):
         days_order = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
         rows = []
 
@@ -222,7 +221,33 @@ class MainLogic:
                         if teacher in schedules and day in schedules[teacher]:
                             lessons_for_time = [l for l in schedules[teacher][day] if l[0] == номер and l[1] == время]
                             if lessons_for_time and lessons_for_time[0][2].strip():
-                                row.append(lessons_for_time[0][2])
+                                if not keep_groups:
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0]
+                                    shift_groups_deleted_repeats = re.sub(
+                                        r'\s*\(?(\d+\s*подгрупп[а-я]*|подгрупп[а-я]*\s*\d+)\)?\s*',
+                                        '',
+                                        shift_groups,
+                                        flags=re.IGNORECASE
+                                    ).split(", ")
+                                    unique_groups_names = ", ".join(set(shift_groups_deleted_repeats))
+                                    shift_lesson_all_info = unique_groups_names + "\n" + "\n".join(shift_lesson_all_info[1:])
+                                    row.append(shift_lesson_all_info)
+                                else:
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0].split(", ")
+                                    shift_changed_groups = []
+                                    for num_group in range(len(shift_groups)):
+                                        if num_group % 2 != 0:
+                                            shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                        else:
+                                            if num_group + 1 == len(shift_groups):
+                                                shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                            else:
+                                                shift_changed_groups.append(shift_groups[num_group] + ", ")
+                                    shift_lesson_all_info = "".join(shift_changed_groups) + "\n".join(shift_lesson_all_info[1:])
+
+                                    row.append(shift_lesson_all_info)
                             else:
                                 row.append("")
                         else:
@@ -258,13 +283,12 @@ class MainLogic:
         odd_week_schedule = {}
         even_week_schedule = {}
         current_heading = None
-
         def extract_text_with_commas_and_breaks(td):
             result = []
             group_names = []
             group_set = set()
             current_line = []
-
+            coun_br = 0
             for elem in td.contents:
                 if isinstance(elem, NavigableString):
                     text_ = elem.strip()
@@ -272,6 +296,7 @@ class MainLogic:
                         current_line.append(text_)
                 elif isinstance(elem, Tag):
                     if elem.name == "br":
+                        coun_br += 1
                         if current_line:
                             line = ' '.join(current_line).strip()
                             if line:
@@ -283,10 +308,14 @@ class MainLogic:
                         text_ = elem.get_text(strip=True)
                         if "подгруппа" in text_:
                             # Удаляем "(1 подгруппа)" и подобное
-                            base_name = re.sub(r'\s*\(.*подгруппа\)', '', text_)
+                            base_name = text_
+                            #base_name = re.sub(r'\s*\(?(\d+\s*подгрупп[а-я]*|подгрупп[а-я]*\s*\d+)\)?\s*', '', text_, flags=re.IGNORECASE)
                             if base_name not in group_set:
                                 group_set.add(base_name)
                                 group_names.append(base_name)
+                        elif coun_br == 0:
+                            group_set.add(text_)
+                            group_names.append(text_)
                         else:
                             current_line.append(text_)
 
@@ -294,15 +323,8 @@ class MainLogic:
                 line = ' '.join(current_line).strip()
                 if line:
                     result.append(line)
-
-            # output = []
-            # if group_names:
-            #     output.append(', '.join(group_names))
-            # if result:
-            #     output.extend(result)
-            #
-            # return '\n'.join([line for line in output if line]).strip()
-
+            if len(result) > 2 and not (result[-2].lower().strip() == "эиос"):
+                result.pop(-1)
             output = ''
             if group_names:
                 output += ', '.join(group_names)
@@ -310,9 +332,9 @@ class MainLogic:
                 if output:
                     output += '\n'
                 output += '\n'.join(result)
-
             # Удаление преподавателя из строки
-            output = output.replace(teacher_name + "\n", "").replace("ЭИОС\n", "ЭИОС, ")
+            output = output.replace(teacher_name + "\n", "")
+            output = output.replace("ЭИОС\n", "ЭИОС, ")
 
             return output.strip()
 

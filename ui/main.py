@@ -1,7 +1,17 @@
+import os
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import threading
 from logic.main import MainLogic
+
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return os.path.join(base_path, relative_path)
 
 
 class MainWindow:
@@ -16,7 +26,9 @@ class MainWindow:
         self.window.mainloop()
 
     def setup_ui(self):
-        icon = tk.PhotoImage(file="content/sfu_icon.png")
+        icon_path = resource_path("ui/content/sfu_icon.png")
+        icon = tk.PhotoImage(file=icon_path)
+        self.window.iconphoto(True, icon)
         self.window.iconphoto(True, icon)
 
         style = ttk.Style()
@@ -42,7 +54,8 @@ class MainWindow:
         def on_button_release(button):
             button.configure(style="Custom.TButton")
 
-        logo = tk.PhotoImage(file="content/sfu_logo.png")
+        logo_path = resource_path("ui/content/sfu_logo.png")
+        logo = tk.PhotoImage(file=logo_path)
         logo_label = tk.Label(self.window, image=logo, bg="#FF7900")
         logo_label.image = logo  # сохранить ссылку
         logo_label.pack(pady=(0, 20))
@@ -111,9 +124,31 @@ class DownloadWindow(tk.Toplevel):
         self.geometry("700x500")
         self.configure(bg="#FF7900")
         self.resizable(False, False)
+        self.keep_subgroups = tk.BooleanVar(value=False)
 
-        self.status_frame = tk.Frame(self, bg="white")
-        self.status_frame.pack(pady=20, fill=tk.BOTH, expand=True)
+        # === Обертка для прокрутки ===
+        frame_container = tk.Frame(self, bg="white")
+        frame_container.pack(pady=20, fill=tk.BOTH, expand=True)
+
+        canvas = tk.Canvas(frame_container, bg="white", highlightthickness=0)
+        scrollbar = tk.Scrollbar(frame_container, orient="vertical", command=canvas.yview)
+        self.status_frame = tk.Frame(canvas, bg="white")
+
+        # Привязка скролла
+        self.status_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.status_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.canvas = canvas  # можно сохранить, если нужно потом прокручивать программно
+
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)  # Windows/Mac
 
         self.loading_label = tk.Label(self, text="Загрузка расписаний...", font=("Arial", 12), bg="white")
         self.loading_label.pack(pady=10)
@@ -144,12 +179,48 @@ class DownloadWindow(tk.Toplevel):
                                      command=self.refresh_schedule, state=tk.DISABLED)
         self.btn_refresh.pack(side=tk.LEFT, padx=10)
 
+        self.keep_subgroups_var = tk.BooleanVar(value=False)  # чекбокс группы
+        # Чекбокс "Оставить подгруппы"
+        self.chk_keep_subgroups = tk.Checkbutton(
+            button_frame,
+            text="Оставить подгруппы",
+            variable=self.keep_subgroups_var,
+            font=("Arial", 12),
+            bg="white",  # фон как у кнопки
+            fg="black",  # текст
+            activebackground="white",
+            activeforeground="black",
+            selectcolor="white",  # фон галочки внутри
+            highlightthickness=0,
+            bd=1,  # небольшая рамка
+            relief="solid",  # чтобы казалось как кнопка
+            padx=10,
+            pady=5
+        )
+        self.chk_keep_subgroups.pack(side=tk.LEFT, padx=10)
+
+
         self.btn_download = ttk.Button(button_frame, text="Скачать таблицу", style="Custom.TButton",
                                       command=self.download_schedule, state=tk.DISABLED)
         self.btn_download.pack(side=tk.LEFT, padx=10)
 
         # Запускаем загрузку расписаний в отдельном потоке
         threading.Thread(target=self.load_schedules, daemon=True).start()
+
+    def _on_mousewheel(self, event):
+        """Обработчик прокрутки колесика мыши с проверкой границ"""
+        # Получаем текущее положение прокрутки
+        first_visible, last_visible = self.canvas.yview()
+
+        # Определяем направление прокрутки
+        scroll_up = (event.num == 4 or event.delta > 0)
+        scroll_down = (event.num == 5 or event.delta < 0)
+
+        # Проверяем, можно ли прокручивать дальше
+        if scroll_up and first_visible > 0:
+            self.canvas.yview_scroll(-1, "units")  # Прокрутка вверх
+        elif scroll_down and last_visible < 1:
+            self.canvas.yview_scroll(1, "units")  # Прокрутка вниз
 
     def load_schedules(self):
         try:
@@ -194,14 +265,9 @@ class DownloadWindow(tk.Toplevel):
 
     def download_schedule(self):
         try:
-            self.logic.create_combined_schedule(save_file=True)
-            self.destroy()
+            self.logic.create_combined_schedule(save_file=True, keep_groups=self.keep_subgroups_var.get())
+            #self.destroy()
         except ValueError as e:
             messagebox.showerror("Ошибка", str(e))
         except PermissionError as e:
             messagebox.showerror("Ошибка", str(e))
-
-
-if __name__ == "__main__":
-    logic = MainLogic()
-    ui = MainWindow(logic)
