@@ -29,7 +29,6 @@ class MainWindow:
         icon_path = resource_path("ui/content/sfu_icon.png")
         icon = tk.PhotoImage(file=icon_path)
         self.window.iconphoto(True, icon)
-        self.window.iconphoto(True, icon)
 
         style = ttk.Style()
         style.theme_use("clam")
