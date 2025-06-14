@@ -73,6 +73,8 @@ class MainLogic:
 
         odd_df = self.create_schedule_df(odd_schedules, teachers, keep_groups=keep_groups)
         even_df = self.create_schedule_df(even_schedules, teachers, keep_groups=keep_groups)
+        combined_df = self.create_combined_schedule_df(odd_schedules, even_schedules, teachers, keep_groups=keep_groups)
+
         if not save_file:
             return
 
@@ -89,38 +91,122 @@ class MainLogic:
                 with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                     odd_df.to_excel(writer, sheet_name="1 нед", index=False)
                     even_df.to_excel(writer, sheet_name="2 нед", index=False)
+                    combined_df.to_excel(writer, sheet_name="Объединённое расписание", index=False,startrow=1)
                     workbook = writer.book
                     for sheet_name in ["1 нед", "2 нед"]:
                         worksheet = writer.sheets[sheet_name]
                         self.apply_formatting(worksheet, teachers)
+                    combined_worksheet = writer.sheets["Объединённое расписание"]
+                    self.apply_combined_formatting(combined_worksheet, teachers)
                 messagebox.showinfo("Готово", "Объединённое расписание успешно создано!")
             except PermissionError:
                 raise PermissionError(f"Ошибка сохранения таблицы, возможно в данный момент открыт изменяемый файл ({file_path})")
         else:
             messagebox.showwarning("Отменено", "Сохранение файла было отменено.")
 
-    def apply_formatting(self, worksheet, teachers):
+
+    def create_combined_schedule_df(self, odd_schedules, even_schedules, teachers, keep_groups=False):
+        days_order = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
+        rows = []
+        columns = ["№", "Время"] + sum([[f"{teacher} (Нечётная)", f"{teacher} (Чётная)"] for teacher in teachers], [])
+
+        for day in days_order:
+            day_lessons = set()
+            has_slots = False
+            for teacher in teachers:
+                if teacher in odd_schedules and day in odd_schedules[teacher]:
+                    for lesson in odd_schedules[teacher][day]:
+                        номер, время = lesson[0], lesson[1]
+                        day_lessons.add((номер, время))
+                        has_slots = True
+                if teacher in even_schedules and day in even_schedules[teacher]:
+                    for lesson in even_schedules[teacher][day]:
+                        номер, время = lesson[0], lesson[1]
+                        day_lessons.add((номер, время))
+                        has_slots = True
+
+            if has_slots:
+                lessons = sorted(list(day_lessons), key=lambda x: int(x[0]))
+                day_added = False
+                for номер, время in lessons:
+                    row = [номер, время]
+                    has_data = False
+                    for teacher in teachers:
+                        odd_lesson = ""
+                        even_lesson = ""
+                        if teacher in odd_schedules and day in odd_schedules[teacher]:
+                            lessons_for_time = [l for l in odd_schedules[teacher][day] if
+                                                l[0] == номер and l[1] == время]
+                            if lessons_for_time and lessons_for_time[0][2].strip():
+                                has_data = True
+                                if not keep_groups:
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0]
+                                    shift_groups_deleted_repeats = re.sub(
+                                        r'\s*\(?(\d+\s*подгрупп[а-я]*|подгрупп[а-я]*\s*\d+)\)?\s*',
+                                        '',
+                                        shift_groups,
+                                        flags=re.IGNORECASE
+                                    ).split(", ")
+                                    unique_groups_names = ", ".join(set(shift_groups_deleted_repeats))
+                                    shift_lesson_all_info = unique_groups_names + "\n" + "\n".join(
+                                        shift_lesson_all_info[1:])
+                                    odd_lesson = shift_lesson_all_info
+                                else:
+                                    odd_lesson = lessons_for_time[0][2]
+                        if teacher in even_schedules and day in even_schedules[teacher]:
+                            lessons_for_time = [l for l in even_schedules[teacher][day] if
+                                                l[0] == номер and l[1] == время]
+                            if lessons_for_time and lessons_for_time[0][2].strip():
+                                has_data = True
+                                if not keep_groups:
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0]
+                                    shift_groups_deleted_repeats = re.sub(
+                                        r'\s*\(?(\d+\s*подгрупп[а-я]*|подгрупп[а-я]*\s*\d+)\)?\s*',
+                                        '',
+                                        shift_groups,
+                                        flags=re.IGNORECASE
+                                    ).split(", ")
+                                    unique_groups_names = ", ".join(set(shift_groups_deleted_repeats))
+                                    shift_lesson_all_info = unique_groups_names + "\n" + "\n".join(
+                                        shift_lesson_all_info[1:])
+                                    even_lesson = shift_lesson_all_info
+                                else:
+                                    even_lesson = lessons_for_time[0][2]
+                        row.append(odd_lesson)
+                        row.append(even_lesson)
+                    if has_data:
+                        if not day_added:
+                            rows.append([day] + [""] * (len(teachers) * 2 + 1))
+                            day_added = True
+                        rows.append(row)
+
+        df = pd.DataFrame(rows, columns=columns)
+        return df
+
+    def apply_combined_formatting(self, worksheet, teachers):
         days_order = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
         header_fill = PatternFill(start_color="5f8a96", end_color="5f8a96", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF")
         day_fill = PatternFill(start_color="ff6600", end_color="ff6600", fill_type="solid")
         day_font = Font(bold=True, color="FFFFFF")
         subject_fill = PatternFill(start_color="f0f0f0", end_color="f0f0f0", fill_type="solid")
-        discipline_font = Font(color="5f8a96", bold=True)  # For discipline names
-        default_font = Font(color="000000")  # For group and building
-        hyperlink_font = Font(color="5f8a96", bold=True)  # For teacher hyperlinks
+        discipline_font = Font(color="5f8a96", bold=True)
+        default_font = Font(color="000000")
+        hyperlink_font = Font(color="5f8a96", bold=True, underline="single")
         medium_border = Border(left=Side(style='medium', color='cccccc'),
                                right=Side(style='medium', color='cccccc'),
                                top=Side(style='medium', color='cccccc'),
                                bottom=Side(style='medium', color='cccccc'))
         thick_bottom_border = Border(bottom=Side(style='thick', color='5f8a96'))
         day_alignment = Alignment(horizontal="left", vertical="center", indent=1, wrap_text=True)
-        center_alignment = Alignment(horizontal="center", vertical="center", indent=1, wrap_text=True)
+        center_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell_alignment = Alignment(horizontal="left", vertical="top", indent=1, wrap_text=True)
 
-        # Set column widths
-        worksheet.column_dimensions['A'].width = 74 / 7.5  # №, ~74 pixels
-        worksheet.column_dimensions['B'].width = 100 / 7.5  # Время, ~80 pixels
+        # Установка ширины столбцов
+        worksheet.column_dimensions['A'].width = 74 / 7.5  # №
+        worksheet.column_dimensions['B'].width = 100 / 7.5  # Время
         for col in range(3, worksheet.max_column + 1):
             max_length = 0
             for row in range(2, worksheet.max_row + 1):
@@ -130,18 +216,129 @@ class MainLogic:
                     lines = text.split('\n')
                     for line in lines:
                         max_length = max(max_length, len(line))
-            adjusted_width = max_length + 2 if max_length > 0 else 10  # Fallback width
+            adjusted_width = max_length + 2 if max_length > 0 else 10
             worksheet.column_dimensions[get_column_letter(col)].width = adjusted_width
 
-        # Format header row
+        worksheet.cell(row=1, column=1).value = ""
+        worksheet.cell(row=1, column=2).value = ""
+
+        # Форматирование заголовков (строка 1 - имена преподавателей)
+        for teacher_idx, teacher in enumerate(teachers):
+            col_start = 3 + teacher_idx * 2  # Начало пары столбцов (Нечётная)
+            col_end = col_start + 1  # Конец пары столбцов (Чётная)
+            worksheet.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_end)
+            cell = worksheet.cell(row=1, column=col_start)
+            cell.value = teacher
+            cell.fill = subject_fill
+            cell.font = hyperlink_font
+            cell.alignment = center_alignment
+            cell.border = medium_border
+
+            # Добавляем гиперссылку если есть URL
+            for t in self.teachers:
+                if t["фио"] == teacher and "url" in t:
+                    cell.hyperlink = t["url"]
+                    # Явно переустанавливаем форматирование после гиперссылки
+                    cell.font = hyperlink_font
+                    cell.alignment = center_alignment
+                    break
+
+        # Форматирование строки 2 (заголовки столбцов)
+        worksheet.row_dimensions[2].height = 15.75
+        for col in range(1, worksheet.max_column + 1):
+            cell = worksheet.cell(row=2, column=col)
+            if col == 1:
+                cell.value = "№"
+            elif col == 2:
+                cell.value = "Время"
+            elif col % 2 == 1:
+                cell.value = "Нечётная неделя"
+            else:
+                cell.value = "Чётная неделя"
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = center_alignment
+            cell.border = medium_border
+        # Форматирование данных
+        for row in range(3, worksheet.max_row + 1):
+            first_cell = worksheet.cell(row=row, column=1)
+            if first_cell.value in days_order:
+                worksheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=worksheet.max_column)
+                for col in range(1, worksheet.max_column + 1):
+                    day_cell = worksheet.cell(row=row, column=col)
+                    day_cell.fill = day_fill
+                    day_cell.font = day_font
+                    day_cell.alignment = day_alignment
+                    day_cell.border = thick_bottom_border
+                    if col == 1:
+                        day_cell.value = first_cell.value
+            else:
+                num_cell = worksheet.cell(row=row, column=1)
+                time_cell = worksheet.cell(row=row, column=2)
+                num_cell.alignment = center_alignment
+                time_cell.alignment = center_alignment
+                num_cell.border = medium_border
+                time_cell.border = medium_border
+                num_cell.font = default_font
+                time_cell.font = default_font
+                for col in range(3, worksheet.max_column + 1):
+                    subject_cell = worksheet.cell(row=row, column=col)
+                    if subject_cell.value:
+                        lines = str(subject_cell.value).split('\n')
+                        if len(lines) >= 3:
+                            subject_cell.value = "\n".join(lines)
+                            subject_cell.font = discipline_font
+                        elif len(lines) == 2:
+                            subject_cell.value = f"{lines[0]}\n{lines[1]}"
+                            subject_cell.font = discipline_font
+                        else:
+                            subject_cell.value = lines[0]
+                            subject_cell.font = default_font
+                    subject_cell.fill = subject_fill
+                    subject_cell.alignment = cell_alignment
+                    subject_cell.border = medium_border
+
+    def apply_formatting(self, worksheet, teachers):
+        days_order = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
+        header_fill = PatternFill(start_color="5f8a96", end_color="5f8a96", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF")
+        day_fill = PatternFill(start_color="ff6600", end_color="ff6600", fill_type="solid")
+        day_font = Font(bold=True, color="FFFFFF")
+        subject_fill = PatternFill(start_color="f0f0f0", end_color="f0f0f0", fill_type="solid")
+        discipline_font = Font(color="5f8a96", bold=True)
+        default_font = Font(color="000000")
+        hyperlink_font = Font(color="5f8a96", bold=True)
+        medium_border = Border(left=Side(style='medium', color='cccccc'),
+                               right=Side(style='medium', color='cccccc'),
+                               top=Side(style='medium', color='cccccc'),
+                               bottom=Side(style='medium', color='cccccc'))
+        thick_bottom_border = Border(bottom=Side(style='thick', color='5f8a96'))
+        day_alignment = Alignment(horizontal="left", vertical="center", indent=1, wrap_text=True)
+        center_alignment = Alignment(horizontal="center", vertical="center", indent=1, wrap_text=True)
+        cell_alignment = Alignment(horizontal="left", vertical="top", indent=1, wrap_text=True)
+
+        worksheet.column_dimensions['A'].width = 74 / 7.5
+        worksheet.column_dimensions['B'].width = 100 / 7.5
+        for col in range(3, worksheet.max_column + 1):
+            max_length = 0
+            for row in range(2, worksheet.max_row + 1):
+                cell = worksheet.cell(row=row, column=col)
+                if cell.value:
+                    text = str(cell.value)
+                    lines = text.split('\n')
+                    for line in lines:
+                        max_length = max(max_length, len(line))
+            adjusted_width = max_length + 2 if max_length > 0 else 10
+            worksheet.column_dimensions[get_column_letter(col)].width = adjusted_width
+
         for col in range(1, worksheet.max_column + 1):
             cell = worksheet.cell(row=1, column=col)
-            if col <= 2:  # № and Время
+            if col <= 2:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_alignment
                 cell.border = medium_border
-            else:  # Teachers
+            else:
                 cell.fill = subject_fill
                 cell.font = hyperlink_font
                 cell.alignment = cell_alignment
@@ -155,11 +352,9 @@ class MainLogic:
                             cell.style = "Hyperlink"
                             break
 
-        # Format data rows
         for row in range(2, worksheet.max_row + 1):
             first_cell = worksheet.cell(row=row, column=1)
             if first_cell.value in days_order:
-                # Day header
                 worksheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=worksheet.max_column)
                 for col in range(1, worksheet.max_column + 1):
                     day_cell = worksheet.cell(row=row, column=col)
@@ -168,10 +363,8 @@ class MainLogic:
                     day_cell.alignment = day_alignment
                     day_cell.border = thick_bottom_border
                     if col == 1:
-                        day_cell.value = first_cell.value  # Устанавливаем значение только в первой ячейке
-                    # Удаляем попытку установить значение для остальных ячеек (MergedCell)
+                        day_cell.value = first_cell.value
             else:
-                # Lesson row
                 num_cell = worksheet.cell(row=row, column=1)
                 time_cell = worksheet.cell(row=row, column=2)
                 num_cell.alignment = center_alignment
@@ -184,16 +377,14 @@ class MainLogic:
                     subject_cell = worksheet.cell(row=row, column=col)
                     if subject_cell.value:
                         lines = str(subject_cell.value).split('\n')
-                        if len(lines) >= 3:  # Expecting group, discipline, building
-                            # subject_cell.value = f"{lines[0]}\n{lines[1]}\n{lines[2]}"  # Keep only group, discipline, building
-                            # subject_cell.font = discipline_font  # Discipline in #5f8a96, bold
+                        if len(lines) >= 3:
                             subject_cell.value = "\n".join(lines)
                             subject_cell.font = discipline_font
-                        elif len(lines) == 2:  # Group and discipline
-                            subject_cell.value = f"{lines[0]}\n{lines[1]}"  # Keep group and discipline
+                        elif len(lines) == 2:
+                            subject_cell.value = f"{lines[0]}\n{lines[1]}"
                             subject_cell.font = discipline_font
                         else:
-                            subject_cell.value = lines[0]  # Fallback
+                            subject_cell.value = lines[0]
                             subject_cell.font = default_font
                     subject_cell.fill = subject_fill
                     subject_cell.alignment = cell_alignment
@@ -212,7 +403,6 @@ class MainLogic:
                         day_lessons.add((номер, время))
 
             if day_lessons:
-                #rows.append([day] + [""] * (len(teachers) + 1))  # Заголовок дня
                 fl = True
                 lessons = sorted(list(day_lessons), key=lambda x: int(x[0]))
                 for номер, время in lessons:
@@ -246,22 +436,16 @@ class MainLogic:
                                             else:
                                                 shift_changed_groups.append(shift_groups[num_group] + ", ")
                                     shift_lesson_all_info = "".join(shift_changed_groups) + "\n".join(shift_lesson_all_info[1:])
-
                                     row.append(shift_lesson_all_info)
                             else:
                                 row.append("")
                         else:
                             row.append("")
-                    #rows.append(row)
                     if any(cell != "" for cell in row[2:]):
                         if fl:
-                            rows.append([day] + [""] * (len(teachers) + 1))  # Заголовок дня
+                            rows.append([day] + [""] * (len(teachers) + 1))
                             fl = False
                         rows.append(row)
-                    # print(len(row))
-                    # if row[2] != "" or row[3] != "":
-                    #     rows.append(row)
-
 
         columns = ["№", "Время"] + teachers
         df = pd.DataFrame(rows, columns=columns)
@@ -307,9 +491,7 @@ class MainLogic:
                     else:
                         text_ = elem.get_text(strip=True)
                         if "подгруппа" in text_:
-                            # Удаляем "(1 подгруппа)" и подобное
                             base_name = text_
-                            #base_name = re.sub(r'\s*\(?(\d+\s*подгрупп[а-я]*|подгрупп[а-я]*\s*\d+)\)?\s*', '', text_, flags=re.IGNORECASE)
                             if base_name not in group_set:
                                 group_set.add(base_name)
                                 group_names.append(base_name)
@@ -332,10 +514,8 @@ class MainLogic:
                 if output:
                     output += '\n'
                 output += '\n'.join(result)
-            # Удаление преподавателя из строки
             output = output.replace(teacher_name + "\n", "")
             output = output.replace("ЭИОС\n", "ЭИОС, ")
-
             return output.strip()
 
         for row in rows:
