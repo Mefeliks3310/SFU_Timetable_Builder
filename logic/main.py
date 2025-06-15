@@ -104,7 +104,6 @@ class MainLogic:
         else:
             messagebox.showwarning("Отменено", "Сохранение файла было отменено.")
 
-
     def create_combined_schedule_df(self, odd_schedules, even_schedules, teachers, keep_groups=False):
         days_order = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
         rows = []
@@ -153,7 +152,24 @@ class MainLogic:
                                         shift_lesson_all_info[1:])
                                     odd_lesson = shift_lesson_all_info
                                 else:
-                                    odd_lesson = lessons_for_time[0][2]
+                                    #odd_lesson = lessons_for_time[0][2]
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0].split(", ")
+                                    shift_changed_groups = []
+                                    for num_group in range(len(shift_groups)):
+                                        if num_group % 2 != 0:
+                                            shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                        else:
+                                            if num_group + 1 == len(shift_groups):
+                                                shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                            else:
+                                                shift_changed_groups.append(shift_groups[num_group] + ", ")
+                                    shift_lesson_all_info = "".join(shift_changed_groups) + "\n".join(
+                                        shift_lesson_all_info[1:])
+                                    #row.append(shift_lesson_all_info)
+                                    odd_lesson = shift_lesson_all_info
+
+
                         if teacher in even_schedules and day in even_schedules[teacher]:
                             lessons_for_time = [l for l in even_schedules[teacher][day] if
                                                 l[0] == номер and l[1] == время]
@@ -173,7 +189,22 @@ class MainLogic:
                                         shift_lesson_all_info[1:])
                                     even_lesson = shift_lesson_all_info
                                 else:
-                                    even_lesson = lessons_for_time[0][2]
+                                    #even_lesson = lessons_for_time[0][2]
+                                    shift_lesson_all_info = lessons_for_time[0][2].split("\n")
+                                    shift_groups = shift_lesson_all_info[0].split(", ")
+                                    shift_changed_groups = []
+                                    for num_group in range(len(shift_groups)):
+                                        if num_group % 2 != 0:
+                                            shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                        else:
+                                            if num_group + 1 == len(shift_groups):
+                                                shift_changed_groups.append(shift_groups[num_group] + "\n")
+                                            else:
+                                                shift_changed_groups.append(shift_groups[num_group] + ", ")
+                                    shift_lesson_all_info = "".join(shift_changed_groups) + "\n".join(
+                                        shift_lesson_all_info[1:])
+                                    #row.append(shift_lesson_all_info)
+                                    even_lesson = shift_lesson_all_info
                         row.append(odd_lesson)
                         row.append(even_lesson)
                     if has_data:
